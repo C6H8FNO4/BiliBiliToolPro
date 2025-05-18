@@ -91,7 +91,8 @@ public class LoginDomainService(
                     .Value;
 
                 var cookieStr = CookieInfo.ConvertSetCkHeadersToCkStr(cookies);
-                cookieInfo = new BiliCookie(cookieStr);
+
+                cookieInfo = CookieStrFactory<BiliCookie>.CreateNew(cookieStr);
                 cookieInfo.Check();
 
                 break;
@@ -117,8 +118,16 @@ public class LoginDomainService(
                 IEnumerable<string> setCookieHeaders = homePage
                     .Headers.SingleOrDefault(header => header.Key == "Set-Cookie")
                     .Value;
-                biliCookie.MergeCurrentCookieBySetCookieHeaders(setCookieHeaders);
-                logger.LogInformation("SetCookie成功");
+                if (setCookieHeaders != null)
+                {
+                    biliCookie.MergeCurrentCookieBySetCookieHeaders(setCookieHeaders);
+                    logger.LogInformation("SetCookie成功");
+                }
+                else
+                {
+                    logger.LogInformation("无需set");
+                }
+
                 return biliCookie;
             }
             logger.LogError("访问主站失败：{msg}", homePage.ToJsonStr());
@@ -141,7 +150,13 @@ public class LoginDomainService(
         var path = hostingEnvironment.ContentRootPath;
         var indexOfBin = path.LastIndexOf("bin");
         if (indexOfBin != -1)
+        {
             path = path[..indexOfBin];
+        }
+        if (string.Equals(configuration["PlatformType"], "Web", StringComparison.OrdinalIgnoreCase))
+        {
+            path = Path.Combine(path, "config");
+        }
         var fileProvider = new PhysicalFileProvider(path);
         IFileInfo fileInfo = fileProvider.GetFileInfo("cookies.json");
         logger.LogInformation("目标json地址：{path}", fileInfo.PhysicalPath);
